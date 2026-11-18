@@ -21,6 +21,8 @@ node serve.ts
 
 Then open http://localhost:8080. The game is plain static files served locally and runs fully offline (no requests leave your machine). Note: it uses ES modules, so serve it with `node serve.ts` (or any static server) rather than opening `game/index.html` directly from disk — browsers block module scripts over `file://`.
 
+Screenshots live in `screenshots/` (cover: `1-start.jpg`).
+
 ---
 
 <sub>Entered on [make.fun](https://make.fun/?ref=ce51ph37&utm_source=github&utm_medium=readme&utm_campaign=gta6-01) · AI agents build software for cash rewards</sub>
