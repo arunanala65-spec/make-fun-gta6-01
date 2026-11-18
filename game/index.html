@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neon Harbor — an open-world crime game</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #160f2e; font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #eef1f5; }
+  #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .hud { position: fixed; z-index: 5; pointer-events: none; text-shadow: 0 1px 4px rgba(0,0,0,.8); }
+  #hud-left { top: 16px; left: 18px; }
+  #hud-cash { font-size: 30px; font-weight: 800; color: #7dff5e; letter-spacing: .5px; }
+  #hud-objective { margin-top: 4px; font-size: 15px; color: #fff; max-width: 430px; line-height: 1.35; }
+  #hud-distance { margin-top: 2px; font-size: 14px; color: #ffc21e; font-weight: 600; }
+  #hud-stars { top: 16px; right: 18px; font-size: 26px; letter-spacing: 4px; color: #ffd76a; }
+  #hud-stars.hot { color: #ff5346; }
+  #hud-right { right: 18px; bottom: 16px; text-align: right; }
+  #hud-speed { font-size: 26px; font-weight: 800; }
+  #hud-health { width: 170px; height: 10px; margin-top: 6px; background: rgba(255,255,255,.22); border-radius: 5px; overflow: hidden; }
+  #hud-health-fill { height: 100%; width: 100%; background: #43d17c; border-radius: 5px; transition: width .2s; }
+  #hud-health-fill.low { background: #ff5346; }
+  #minimap { position: fixed; left: 18px; bottom: 16px; z-index: 5; width: 200px; height: 200px; border: 2px solid rgba(255,255,255,.35); border-radius: 8px; background: #101018; }
+  #hud-prompt { left: 50%; bottom: 24px; transform: translateX(-50%); font-size: 17px; font-weight: 600; color: #ffc21e; }
+  #hud-toast { left: 50%; top: 84px; transform: translateX(-50%); font-size: 17px; font-weight: 600; background: rgba(10,10,20,.72); padding: 9px 18px; border-radius: 8px; opacity: 0; transition: opacity .25s; }
+  #hud-toast.show { opacity: 1; }
+  #hud-banner { left: 50%; top: 34%; transform: translate(-50%, -50%); font-size: 42px; font-weight: 900; color: #ffc21e; text-align: center; opacity: 0; transition: opacity .3s; letter-spacing: 1px; }
+  #hud-banner.show { opacity: 1; }
+  .overlay { position: fixed; inset: 0; z-index: 10; display: none; align-items: center; justify-content: center; background: rgba(12, 8, 26, .55); }
+  .overlay.show { display: flex; }
+  .panel { width: min(620px, 92vw); background: rgba(16, 14, 32, .92); border: 1px solid rgba(255,194,30,.45); border-radius: 14px; padding: 34px 38px; text-align: center; box-shadow: 0 18px 60px rgba(0,0,0,.6); }
+  .panel h1 { margin: 0 0 6px; font-size: 52px; letter-spacing: 3px; color: #ffc21e; }
+  .panel h2 { margin: 0 0 10px; font-size: 38px; color: #ffc21e; }
+  .panel .tag { margin: 0 0 18px; font-size: 16px; color: #c9c2e0; line-height: 1.5; }
+  .panel .controls { margin: 0 auto 20px; text-align: left; display: inline-block; font-size: 15px; line-height: 1.9; color: #e8e4f5; }
+  .panel .controls b { color: #7dff5e; }
+  .panel .best { margin: 0 0 20px; font-size: 14px; color: #9a93b5; }
+  .panel .prompt { margin: 0; font-size: 19px; font-weight: 700; color: #7dff5e; }
+  .panel button { pointer-events: auto; margin-top: 8px; padding: 12px 34px; font-size: 19px; font-weight: 800; color: #1a1026; background: #ffc21e; border: 0; border-radius: 9px; cursor: pointer; }
+  .panel button:hover { background: #ffd34d; }
+</style>
+<script type="importmap">
+{ "imports": { "three": "./vendor/three.module.min.js" } }
+</script>
+</head>
+<body>
+<canvas id="game" aria-label="Neon Harbor: steal cars, outrun the police, and run jobs across the Portside district"></canvas>
+<p id="status" role="status" aria-live="polite"></p>
+
+<div class="hud" id="hud-left">
+  <div id="hud-cash">$0</div>
+  <div id="hud-objective"></div>
+  <div id="hud-distance"></div>
+</div>
+<div class="hud" id="hud-stars">☆☆☆☆☆</div>
+<div class="hud" id="hud-right">
+  <div id="hud-speed"></div>
+  <div id="hud-health"><div id="hud-health-fill"></div></div>
+</div>
+<canvas id="minimap" width="200" height="200" aria-label="Minimap of the Portside district"></canvas>
+<div class="hud" id="hud-prompt"></div>
+<div class="hud" id="hud-toast"></div>
+<div class="hud" id="hud-banner"></div>
+
+<div class="overlay" id="screen-title">
+  <div class="panel">
+    <h1>NEON HARBOR</h1>
+    <p class="tag">An open-world crime game in the Portside district. Steal a car, run the jobs, and lose the heat.</p>
+    <div class="controls">
+      <b>W A S D</b> — walk / drive &nbsp;·&nbsp; <b>Shift</b> — sprint<br>
+      <b>E</b> — steal / leave a car &nbsp;·&nbsp; <b>Mouse drag</b> — look around<br>
+      <b>P</b> — pause &nbsp;·&nbsp; <b>M</b> — sound on/off
+    </div>
+    <p class="best" id="best-line"></p>
+    <button id="start-button" type="button">Start</button>
+    <p class="prompt">or press Space</p>
+  </div>
+</div>
+
+<div class="overlay" id="screen-pause">
+  <div class="panel">
+    <h2>Paused</h2>
+    <p class="tag">The district waits for you.</p>
+    <p class="prompt">Press P to keep playing</p>
+  </div>
+</div>
+
+<div class="overlay" id="screen-over">
+  <div class="panel">
+    <h2 id="over-title">Busted!</h2>
+    <p class="tag" id="over-lines"></p>
+    <p class="prompt">Press Space to play again</p>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+<script>
+  // The Start button is a plain click target; the game itself listens for
+  // Space/Enter, so this only needs to forward the press.
+  document.getElementById('start-button').addEventListener('click', (event) => {
+    event.currentTarget.blur();
+    window.dispatchEvent(new KeyboardEvent('keydown', { code: 'Space', bubbles: true }));
+  });
+</script>
+</body>
+</html>
